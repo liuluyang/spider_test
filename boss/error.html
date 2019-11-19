@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<head>
+    <style type="text/css">
+        .sign-form .row-code {
+            width: 280px;
+            height: 60px;
+        }
+
+    </style>
+    <style>
+        * { margin:0; padding:0; }
+        html,body { height:100%; }
+        body { background-color:#EEF0F5; }
+        body,button { font-family: arial, verdana, helvetica,'PingFang SC','HanHei SC','STHeitiSC-Light', Microsoft Yahei,sans-serif; font-size: 14px; line-height: 24px; color: #414a60; -webkit-font-smoothing: antialiased;}
+        a { text-decoration:none; }
+        #wrap { position:relative; min-height:100%; }
+        .btn { display:inline-block; width:98px; height:32px; line-height:32px; border:1px #62D5C8 solid; color:#5dd5c8; text-align:center; margin-right:20px; }
+        .btn:hover { background-color:#fff; }
+        .error-content { position:absolute; width:644px; min-height:260px; top:50%; left:50%; margin-left:-322px; margin-top:-130px; background:url(https://www.zhipin.com/v2/web/boss/images/icon-page-error.png) right center no-repeat; }
+        .error-content h1 { font-size:30px; line-height:36px; padding-top:30px; }
+        .error-content h3 { padding:20px 0 18px; font-size:18px; font-weight: normal; }
+        .error-content h3.gray { color:#9fa3b0;}
+        .error-content p { color:#9fa3b0; max-width:300px; }
+        .error-content .btns { padding-top:30px; }
+
+        #footer { position:absolute; width:100%; bottom:10px; text-align:center; color:#bec3d1; }
+        @media (max-width: 760px) {
+            .error-content { top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0 auto; width: auto; background-position: center 30px; background-size: 200px auto; text-align: center; padding-top: 150px; }
+            .error-content h1 { font-size: 24px; }
+            .error-content h3 { font-size: 15px; padding: 10px 0 10px; }
+            .btns { white-space: nowrap; }
+            #footer { font-size: 12px; }
+        }
+
+    </style>
+</head>
+<body>
+<div id="wrap">
+    <div id="main">
+        <div class="error-content">
+            <div class="text" style="margin:50px 10px">
+                <h3 class="gray" id="verifyMessage" style="margin-top:-80px;"></h3>
+                <div id="captchaBox"></div>
+            </div>
+        </div>
+        <div>
+            <input type="hidden" id="loadingFlag" value="" />
+            <input type="hidden" id="callbackUrl" value="" />
+        </div>
+    </div>
+    <div id="footer">
+        <p>&copy; copyright BOSS直聘  京ICP备14013441号-5</p>
+    </div>
+</div>
+<script type="text/javascript" src="https://static.zhipin.com/library/js/lib/jquery-1.12.2.min.js"></script>
+<script src="/wapi/zpAntispam/verify/js/gt.js"></script>
+<script src="/wapi/zpAntispam/verify/js/layer/layer.js"></script>
+
+<script type="text/javascript">
+    $.ajax({
+        url: "/wapi/zpAntispam/verify/getPageShowInfo.json",
+        type: "POST",
+        dataType: "json",
+        success: function (data) {
+            if (data["code"] == 0) {
+                var zpData = data["zpData"];
+                $("#verifyMessage").text(zpData["verifyMessage"]);
+            }
+        }
+    });
+
+    $.ajax({
+        url: "/wapi/zpAntispam/verify/api/geet/init.json",
+        type: "get",
+        dataType: "json",
+        success: function (data) {
+            console.info("data: " + data);
+            //请检测data的数据结构， 保证data.gt, data.challenge, data.success有值
+            initGeetest({
+                gt: data.gt,
+                challenge: data.challenge,
+                offline: !data.success,
+                new_captcha: true,
+                product: "float"
+            }, function (captchaObj) {
+                captchaObj.appendTo("#captchaBox"); //将验证按钮插入到宿主页面中captchaBox元素内
+                captchaObj.onSuccess(function(){
+                    console.info("success");
+                    var result = captchaObj.getValidate();
+                    $.ajax({
+                        url: "/wapi/zpAntispam/verify/api/geet/confirm.json",
+                        type: "POST",
+                        dataType: "text",
+                        data: {
+                            "challenge": result.geetest_challenge,
+                            "validate": result.geetest_validate,
+                            "seccode": result.geetest_seccode
+                        },
+                        success: function (data) {
+                            console.info("成功");
+                            if (data === "success") {
+                                var loadingFlag = $("#loadingFlag").val();
+                                if (loadingFlag === "yes") {
+                                    layer.load(2, {shade: false});
+                                    var callbackUrl = $("#callbackUrl").val();
+                                    setTimeout("location.href = '" + callbackUrl + "'", 3000);
+                                } else {
+                                    window.history.back();
+                                }
+                            }
+                        }
+                    });
+                })
+            })
+        }
+    });
+
+    function isEmptyStr(str) {
+        return typeof str === "undefined" || str == null || str === "";
+    }
+</script>
+</body>
+</html>
